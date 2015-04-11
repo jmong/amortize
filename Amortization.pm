@@ -223,13 +223,14 @@ sub is_extra_every($$) {
 ##-
 # Is it at the specified extra payment period?
 # @param  scalar  This period
+# @param  scalar  Period to apply extra payment
 # @return  bool  True if this period is at the specific period | false
 ##-
 sub is_extra_at($$) {
-    my $self        = shift;
     my $this_period = shift;
+    my $at_period   = shift;
     
-    return (grep {/^$this_period$/} keys %{$self->{'extra_at'}}) ? TRUE : FALSE;
+    return ($this_period == $at_period) ? TRUE : FALSE;
 }
 
 ##-
@@ -261,17 +262,27 @@ sub next($) {
     
     return sub {
         # Stop when we come to the end of the payment periods.
-        return undef if ++$cur_period > $self->{'periods'};
+        return undef if ($cur_period + 1) > $self->{'periods'};
         
         my $payment = $self->{'period_amount'};
         my $interest = sprintf("%0.2f", $cur_remaining * $self->{'period_rate'});
         my $principal = $self->{'period_amount'} - $interest;
-        # Apply extra principal payment.
+        # Apply extra principal payment annually at every period offest.
         foreach my $per (keys $self->{'extra_every'}) {
-            if (is_extra_every($cur_period,$per) == TRUE) {
+            # Add +1 to first arg in is_extra_*(x + 1, ...) because
+            # in next() we start with real index 0 whereas in amortize.pl
+            # they start with index 1 (my $per = 1) for display purposes.
+            if (is_extra_every($cur_period + 1,$per) == TRUE) {
                 $principal += $self->{'extra_every'}->{$per};
                 $payment += $self->{'extra_every'}->{$per};
-            } elsif ($self->is_extra_at($cur_period,$per) == TRUE) {
+            }
+        }
+        # Apply extra principal payment only at these specific periods.
+        foreach my $per (keys $self->{'extra_at'}) {
+            # Add +1 to first arg in is_extra_*(x + 1, ...) because
+            # in next() we start with real index 0 whereas in amortize.pl
+            # they start with index 1 (my $per = 1) for display purposes.
+            if (is_extra_at($cur_period + 1,$per) == TRUE) {
                 $principal += $self->{'extra_at'}->{$per};
                 $payment += $self->{'extra_at'}->{$per};
             }
@@ -280,6 +291,8 @@ sub next($) {
         
         # Stop when there are no more remaining balance.
         return undef if $cur_remaining <= 0;
+        
+        $cur_period++;
         
         # For the last payment, the period payment amount
         # is the total of the remaining balance.

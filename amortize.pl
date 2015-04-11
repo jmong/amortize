@@ -102,12 +102,14 @@ sub float_to_percent($) {
 ##-
 # Month and year date of the payment period.
 # @param  scalar  Payment period
+# @param  scalar  Month index
+# @param  scalar  Year
 # @return  array  Month and year date of this payment period
 ##-
 sub get_date_from($$$) {
-    my $period      = shift;
-    my $month = shift;
-    my $year  = shift;
+    my $period  = shift;
+    my $month   = shift;
+    my $year    = shift;
     
     my $y = $year + int(($period + $month -1) / 12);
     my $m = (($period + $month) % 12);
@@ -117,7 +119,7 @@ sub get_date_from($$$) {
 }
 
 ##-
-# Convert month index to text.
+# Convert month index to its name.
 # @param  scalar  Month index
 # @return  scalar  Name of the month
 ##-
@@ -252,13 +254,25 @@ if (have_start_date($month, $year)) {
 if (scalar %extra_every) {
     print "Extra payment             : \n";
     foreach my $every (keys %extra_every) {
-        print '         $'.sprintf("%0.2f",$extra_every{$every})." every ".to_month_str($every)."\n";
+        # The extra month corresponds to the period index,
+        # not month index for purposes of display.
+        my $m = ($every + $month - 1) % 12;
+        my $every_str = (have_start_date($month, $year)) 
+                        ?   to_month_str($m)
+                        :   'annual period on ' . $every;
+        print '         $'.sprintf("%0.2f",$extra_every{$every})." every ".$every_str."\n";
     }
 }
 if (scalar %extra_at) {
     print "Extra payment             : \n";
     foreach my $at (keys %extra_at) {
-        print '         $'.sprintf("%0.2f",$extra_at{$at})." at period $at\n";
+        # The extra month corresponds to the period index,
+        # not month index for purposes of display.
+        my $m = ($at + $month - 1) % 12;
+        my $at_str = (have_start_date($month, $year)) 
+                     ?   to_month_str($m)
+                     :   $at;
+        print '         $'.sprintf("%0.2f",$extra_at{$at})." at period $at_str\n";
     }
 }
 
@@ -266,14 +280,15 @@ print $table->get_draw_header();
 my $per = 1;
 my $iter = $amort->next();
 while ($iter->()) {
-    # We count the first period as index zero.
+    # We count the first period as index zero for display purposes.
     my ($m, $y) = get_date_from($per - 1, $month, $year);
-    my $row = { PERIOD   => $per++,
-                DATE     => to_month_str($m)." $y",
-                INTEREST  => $amort->interest_amount(),
-                PAYMENT  => $amort->payment_amount(),
+    my $row = { PERIOD     => $per,
+                DATE       => to_month_str($m)." $y",
+                INTEREST   => $amort->interest_amount(),
+                PAYMENT    => $amort->payment_amount(),
                 PRINCIPAL  => $amort->principal_amount(),
-                BALANCE  => $amort->remaining_amount() };
+                BALANCE    => $amort->remaining_amount() };
+    $per++;
     print $table->get_draw_data_row($row);
 }
 print $table->get_draw_border();
@@ -304,30 +319,47 @@ amortize.pl - Displays amortization schedule table
             Can specify more than once.
         --extraevery <period=amount>
             Extra principal payment amount every recurring annual period.
+            Can specify more than once.
         --month <month index>
             Specify the starting month for payment.
             Use number index to represent the month, eg- 1 is January.
-            Must use with --startyear option.
+            Must use with --year option.
         --year <year>
             Specify the starting year for payment.
-            Must use with --startmonth option.
+            Must use with --month option.
         --help
             Show help information.
             
 =head1 SAMPLE
 
-Amortization payment schedule for a $100,000 loan at 5.0% for 30 years.
+Amortization payment schedule for a $100,000 loan at annual interest rate
+of 5.0% for 30 years.
 $ perl amortize.pl --principal 100000 --interest 0.05 --periods 360
 
-Amortization payment schedule for a $100,000 loan at 5.0% for 30 years
-starting on June 2015.
+Amortization payment schedule for a $100,000 loan at annual interest rate
+of 5.0% for 30 years starting on June 2015.
 $ perl amortize.pl --principal 100000 --interest 0.05 --periods 360
                    --month 6 --year 2015
                    
-Amortization payment schedule for a $100,000 loan at 5.0% for 30 years
-with extra $500 payments every March and September.
+Amortization payment schedule for a $100,000 loan at annual interest rate
+of 5.0% for 30 years with extra $500 payments every March and September.
 $ perl amortize.pl --principal 100000 --interest 0.05 --periods 360
                    --extraevery 3=500 --extraevery 9=500
+                   
+Amortization payment schedule for a $100,000 loan at annual interest rate
+of 5.0% for 30 years with extra $500 payments only at periods 5 and 8.
+$ perl amortize.pl --principal 100000 --interest 0.05 --periods 360
+                   --extraat 5=500 --extraat 8=500
+                   
+Amortization payment schedule for a $100,000 loan at annual interest rate
+of 5.0% for 30 years starting on June 2015 with extra $500 payments
+every February and August. 
+$ perl amortize.pl --principal 100000 --interest 0.05 --periods 360 
+                   --extraevery 3=500 --extraevery 9=500 
+                   --month 6 --year 2015
+(NOTE: Extra every "3" and "9" here means every 3rd and 9th period annually 
+which does not necessarily mean every March and September annually if your
+starting month is June. It is offset by when your starting month is.)
 
 =head1 DESCRIPTION
 
@@ -343,6 +375,7 @@ Features include:
   * Extra principal payments at a specific payment period.
   * Extra principal payments at recurring annual 
     payment period.
+  * Running total of payments, principal, and interest paid.
 
 =head1 LICENSE
 
