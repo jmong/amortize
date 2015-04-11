@@ -134,39 +134,6 @@ sub periods($;$) {
 }
 
 ##-
-# @todo
-# Validate all required information is set.
-# @return  bool  True if all required information is set | false
-##-
-#sub is_valid_terms($) {
-#    return TRUE;
-#}
-
-##-
-# @TODO
-##-
-#sub payment_at($$) {
-#    my ($self, $period_idx) = @_;
-#    
-#    return if ($period_idx == 0 || $period_idx > $self->{'periods'});
-#    
-#    if (exists $self->{'cache'}->{$period_idx}) {
-#        $self->{'current'} = $self->{'cache'}->{$period_idx};
-#    } else {
-#        my $cur_balance = $self->{'principal'} * $period_idx;
-#        
-#        my $to_interest = sprintf("%0.2f", $cur_balance * $self->{'period_rate'});
-#        my $to_principal = sprintf("%0.2f", $self->{'period_amount'} - $to_interest);
-#        my $remaining_balance = $cur_balance - $to_principal;
-#        
-#        $self->{'cache'} = { $period_idx => {'remaining_balance' => $remaining_balance,
-#                                           'interest'          => $to_interest,
-#                                           'principal'         => $to_principal} };
-#        $self->{'current'} = $self->{'cache'}->{$period_idx};
-#    }
-#}
-
-##-
 # Portion of the period payment for principal.
 # @return  scalar  Principal amount
 ##-
@@ -271,9 +238,6 @@ sub is_extra_at($$) {
 ##-
 sub _get_period_amount($) {
     my $self = shift;
-    #if (! $self->is_valid_terms()) {
-    #    return 0.0;
-    #}
     
     my $dividend = ((1 + $self->{'period_rate'})**$self->{'periods'}) * $self->{'period_rate'} * $self->{'principal'};
     my $divisor = ((1 + $self->{'period_rate'})**$self->{'periods'}) - 1;

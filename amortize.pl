@@ -47,8 +47,8 @@ use constant  DATE_SPACING     => 8;
 sub usage($) {
     my $basename = basename $_[0];
     print "Usage: $basename [OPTIONS] --principal <principal amount>\n"; 
-    print "                           --interest <interest rate>\n";
-    print "                           --periods <number of payment periods>\n";
+    print "                             --interest <interest rate>\n";
+    print "                             --periods <number of payment periods>\n";
     print "Description: Calculate and display amortization payments and schedules.\n";
     print "OPTIONS:\n";
     print "    --extraat <period=amount>\n";
@@ -208,6 +208,10 @@ GetOptions ("principal=i"  => \$principal,
 or die("Error in command line arguments\n");
 
 # Validate script arguments.
+if ($principal == 0 || $interest_rate == 0 || $periods == 0) {
+    usage($0);
+    exit(0);
+}
 if ($help == 1) {
     usage($0);
     exit(0);
@@ -274,6 +278,7 @@ while ($iter->()) {
 }
 print $table->get_draw_border();
 
+# Display the totals.
 my $totals = { PERIOD    => '--',
                DATE      => '--',
                INTEREST  => sprintf("%0.2f", $amort->total_interest_amount()),
@@ -286,7 +291,7 @@ print $table->get_draw_border();
 
 =head1 NAME
 
-amortizet.pl - Displays amortization schedule table
+amortize.pl - Displays amortization schedule table
 
 =head1 SYNOPSIS
 
@@ -322,15 +327,17 @@ $ perl amortize.pl --principal 100000 --interest 0.05 --periods 360
 Amortization payment schedule for a $100,000 loan at 5.0% for 30 years
 with extra $500 payments every March and September.
 $ perl amortize.pl --principal 100000 --interest 0.05 --periods 360
-                   --extra_every 3=500 --extra_every 9=500
+                   --extraevery 3=500 --extraevery 9=500
 
 =head1 DESCRIPTION
 
 This script calculates and displays an amortization schedule, 
-for example, a mortgage payment schedule.
+such as, mortgage payments.
 
-It breaks down monthly payment amount and what portion of that
-payment is allocated to interest and principal.
+It breaks down monthly payment amount, what portion of that
+payment is allocated to interest and principal, and total
+amount of payment made at the end. All of these are 
+displayed in an easy-to-view table. 
 
 Features include:
   * Extra principal payments at a specific payment period.
